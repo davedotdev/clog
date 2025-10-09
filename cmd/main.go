@@ -12,6 +12,9 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+// Version information
+const version = "0.1.0"
+
 // Exit codes
 const (
 	exitSuccess         = 0
@@ -62,8 +65,15 @@ func run() int {
 	taskNumFlag := flag.String("task-num", "", "Current task number (e.g., \"3/15\")")
 	sessionFlag := flag.String("session", "", "Session identifier (any string)")
 	helpFlag := flag.Bool("h", false, "Show help")
+	versionFlag := flag.Bool("v", false, "Show version")
 
 	flag.Parse()
+
+	// Show version
+	if *versionFlag {
+		fmt.Printf("clog version %s\n", version)
+		return exitSuccess
+	}
 
 	// Show help
 	if *helpFlag || len(os.Args) == 1 {
@@ -282,6 +292,8 @@ func printHelp() {
 
 USAGE:
   clog -type=<event_type> -message="<text>" [options]
+  clog -v                  # Show version
+  clog -h                  # Show help
 
 REQUIRED FLAGS:
   -type        Event type: task|question|progress|session
@@ -291,6 +303,8 @@ OPTIONAL FLAGS:
   -state       Task state: pending|in_progress|blocked|completed
   -task-num    Current task number (e.g., "3/15")
   -session     Session identifier (any string)
+  -v           Show version
+  -h           Show help
 
 FOR CLAUDE CODE (AI Assistant):
   IMPORTANT: Use this tool to send notifications via NATS before asking the user

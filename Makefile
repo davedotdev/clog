@@ -1,4 +1,4 @@
-.PHONY: build clean install test unittest setup-claude
+.PHONY: build clean install install-system test unittest setup-claude
 
 # Setup Claude Code memory file (user-level, global)
 setup-claude:
@@ -85,8 +85,9 @@ build:
 	echo "  3) token          - Token-based authentication"; \
 	echo "  4) nkey           - NKey authentication"; \
 	echo "  5) decentralized  - Decentralized (JWT + Seed)"; \
+	echo "  6) creds-file     - Extract from NATS credentials file"; \
 	echo ""; \
-	read -p "Select authentication type [1-5, default: 1]: " AUTH_CHOICE; \
+	read -p "Select authentication type [1-6, default: 1]: " AUTH_CHOICE; \
 	AUTH_CHOICE=$${AUTH_CHOICE:-1}; \
 	case $$AUTH_CHOICE in \
 		1) AUTH_TYPE="none"; USERNAME=""; PASSWORD=""; TOKEN=""; NKEY=""; JWT=""; SEED=""; ;; \
@@ -103,6 +104,21 @@ build:
 		5) AUTH_TYPE="decentralized"; \
 		   read -p "NATS JWT: " JWT; \
 		   read -p "NATS Seed: " SEED; \
+		   USERNAME=""; PASSWORD=""; TOKEN=""; NKEY=""; ;; \
+		6) AUTH_TYPE="decentralized"; \
+		   read -p "Path to NATS credentials file: " CREDS_FILE; \
+		   CREDS_FILE=$$(eval echo "$$CREDS_FILE"); \
+		   if [ ! -f "$$CREDS_FILE" ]; then \
+		       echo "Error: Credentials file not found: $$CREDS_FILE"; \
+		       exit 1; \
+		   fi; \
+		   JWT=$$(sed -n '/-----BEGIN NATS USER JWT-----/,/------END NATS USER JWT------/p' "$$CREDS_FILE" | grep -v "BEGIN\|END" | tr -d '\n'); \
+		   SEED=$$(sed -n '/-----BEGIN USER NKEY SEED-----/,/------END USER NKEY SEED------/p' "$$CREDS_FILE" | grep -v "BEGIN\|END" | tr -d '\n'); \
+		   if [ -z "$$JWT" ] || [ -z "$$SEED" ]; then \
+		       echo "Error: Failed to extract JWT or Seed from credentials file"; \
+		       exit 1; \
+		   fi; \
+		   echo "✓ Successfully extracted JWT and Seed from credentials file"; \
 		   USERNAME=""; PASSWORD=""; TOKEN=""; NKEY=""; ;; \
 		*) echo "Invalid choice, defaulting to 'none'"; \
 		   AUTH_TYPE="none"; USERNAME=""; PASSWORD=""; TOKEN=""; NKEY=""; JWT=""; SEED=""; ;; \
@@ -134,11 +150,35 @@ clean:
 	@rm -f clog
 	@echo "✓ Clean complete"
 
-# Install to system (optional)
+# Install to user's local bin directory (recommended)
 install: build
-	@echo "Installing clog to /usr/local/bin..."
-	@sudo cp clog /usr/local/bin/clog
-	@echo "✓ Installed to /usr/local/bin/clog"
+	@echo "Installing clog to ~/bin..."
+	@mkdir -p ~/bin
+	@cp clog ~/bin/clog
+	@chmod a+x ~/bin/clog
+	@echo "✓ Installed to ~/bin/clog with executable permissions"
+	@echo ""
+	@echo "IMPORTANT: Ensure ~/bin is in your PATH"
+	@echo "Add this to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
+	@echo '  export PATH="$$HOME/bin:$$PATH"'
+	@echo ""
+	@echo "Then reload your shell or run: source ~/.bashrc (or ~/.zshrc)"
+
+# Install to system-wide location (requires sudo)
+install-system: build
+	@echo "Installing clog to system-wide location..."
+	@echo ""
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		read -p "Install path [default: /usr/local/bin]: " INSTALL_PATH; \
+		INSTALL_PATH=$${INSTALL_PATH:-/usr/local/bin}; \
+	else \
+		INSTALL_PATH=/usr/local/bin; \
+	fi; \
+	echo "Installing to $$INSTALL_PATH..."; \
+	sudo mkdir -p $$INSTALL_PATH; \
+	sudo cp clog $$INSTALL_PATH/clog; \
+	sudo chmod a+x $$INSTALL_PATH/clog; \
+	echo "✓ Installed to $$INSTALL_PATH/clog with executable permissions"
 
 # Run go mod tidy
 tidy:
