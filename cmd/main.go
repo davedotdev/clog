@@ -292,6 +292,19 @@ OPTIONAL FLAGS:
   -task-num    Current task number (e.g., "3/15")
   -session     Session identifier (any string)
 
+FOR CLAUDE CODE (AI Assistant):
+  IMPORTANT: Use this tool to send notifications via NATS before asking the user
+  questions or when blocked waiting for user input.
+
+  When you need to ask the user a question:
+    1. First call: clog -type=question -state=blocked -message="<your question>" -session="<session>"
+    2. Then ask the user your question normally
+    3. This ensures the user receives a NATS notification about your question
+
+  Example workflow:
+    clog -type=question -state=blocked -message="Should I deploy to staging or production?" -session="deploy-2024"
+    # Then ask the user in the conversation
+
 EXAMPLES:
   # Task started
   clog -type=task -state=in_progress -message="Adding VAT breakdown" -task-num="3/15" -session="nye-api"

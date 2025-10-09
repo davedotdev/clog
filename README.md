@@ -115,23 +115,27 @@ nats sub "claude.questions.*"
 
 Now when you use `clog`, you'll see the messages appear in your NATS subscriber!
 
-### 5. Integrate with Claude Code
+### 5. Integrate with Claude Code (Global Setup)
 
-Add `clog` to Claude Code hooks for automatic tracking. Create `.claude/hooks/user-prompt-submit.sh`:
+Set up Claude Code to automatically use `clog` across **all your projects**:
 
 ```bash
-#!/bin/bash
-# Track when user submits prompts to Claude
-SESSION_ID="${CLAUDE_SESSION_ID:-default-$(date +%s)}"
-./clog -type=session -message="User prompt submitted" -session="$SESSION_ID"
+# Run the setup command
+make setup-claude
 ```
 
-Make it executable:
-```bash
-chmod +x .claude/hooks/user-prompt-submit.sh
-```
+This will:
+- ✅ Create `~/.claude/CLAUDE.md` with global instructions for Claude Code
+- ✅ Configure `~/.claude/settings.json` to allow `clog` commands system-wide
+- ✅ Make Claude Code aware of `clog` in every conversation
 
-Now every time you interact with Claude Code, it will log to NATS!
+**What this does:**
+- Claude Code will know about `clog` in **all your projects**, not just this one
+- Claude will send NATS notifications before asking you questions
+- No manual approval needed for `clog` commands
+- Works globally since `clog` is installed in your system PATH
+
+Now when Claude Code needs to ask you a question in **any project**, it will automatically send a NATS notification first!
 
 ## Installation
 
@@ -170,7 +174,14 @@ Now every time you interact with Claude Code, it will log to NATS!
 
    Your configuration will be baked into the binary and then removed from the source code automatically.
 
-4. **Install to system PATH:**
+4. **Set up Claude Code integration (optional, global):**
+   ```bash
+   make setup-claude
+   ```
+
+   This creates global configuration files in `~/.claude/` so Claude Code can automatically use `clog` across all your projects to send notifications when asking questions or tracking tasks.
+
+5. **Install to system PATH:**
    ```bash
    make install
    ```
@@ -264,14 +275,29 @@ Override baked-in configuration at runtime using environment variables. The prio
 
 ### Using with Claude Code
 
-Add `clog` to your Claude Code hooks to automatically track tasks and questions.
+#### Automatic Setup (Recommended - Global)
 
-**Example `.claude/hooks/user-prompt-submit.sh`:**
+Run the setup command to configure Claude Code to automatically use `clog` across all your projects:
+
 ```bash
-#!/bin/bash
-# Log when user submits a prompt
-clog -type=session -message="User submitted prompt" -session="$SESSION_ID"
+make setup-claude
 ```
+
+This will:
+- Create `~/.claude/CLAUDE.md` - Global memory file that instructs Claude Code when and how to use clog
+- Create or update `~/.claude/settings.json` - Global permissions file that allows clog commands without approval
+- Ensure seamless integration with Claude Code in every project
+
+**What Claude Code will do automatically:**
+- Know about `clog` in all your projects (not just this one)
+- Send NATS notifications before asking you questions
+- Track task progress when working on multi-step tasks
+- No manual intervention required
+- Works anywhere since `clog` is in your system PATH
+
+#### Manual Integration
+
+If you prefer manual setup, you can also use `clog` in custom hooks or scripts.
 
 **Example usage in scripts:**
 ```bash
@@ -348,6 +374,18 @@ Messages are published as JSON:
 - `2` - NATS connection failed
 
 ## Development
+
+### Available Make Targets
+
+```bash
+make build         # Build clog with interactive configuration
+make setup-claude  # Configure Claude Code integration
+make install       # Install clog to /usr/local/bin
+make unittest      # Run unit tests
+make test          # Build and run help output
+make clean         # Clean build artifacts
+make tidy          # Run go mod tidy
+```
 
 ### Running Tests
 
