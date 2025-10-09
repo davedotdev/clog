@@ -1,0 +1,52 @@
+# Binaries
+clog
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+.claude
+
+# Test binaries
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Build artifacts
+/bin/
+/pkg/
+dist/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment and credentials
+.env
+.env.*
+*.creds
+*.nats
+credentials.json
+secrets.yml
+secrets.yaml
+
+# Backup files
+*.bak
+*.tmp
+cmd/main.go.bak
+cmd/main.go.tmp
+
+# Log files
+*.log
+logs/
+
+# OS specific
+Thumbs.db
