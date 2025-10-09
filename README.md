@@ -88,7 +88,7 @@ You should see output like:
 
 ```bash
 # Clone and build
-git clone <repository-url>
+git clone https://github.com/davedotdev/clog.git
 cd clog
 go build -o clog ./cmd/main.go
 
@@ -145,7 +145,7 @@ Now every time you interact with Claude Code, it will log to NATS!
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/davedotdev/clog.git
    cd clog
    ```
 
