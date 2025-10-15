@@ -13,7 +13,7 @@ import (
 )
 
 // Version information
-const version = "0.1.0"
+const version = "0.1.4"
 
 // Exit codes
 const (
@@ -44,12 +44,13 @@ var validTypes = map[string]bool{
 
 // Message represents the JSON structure sent to NATS
 type Message struct {
-	Event     string `json:"event"`
-	Timestamp string `json:"timestamp"`
-	SessionID string `json:"session_id,omitempty"`
-	Message   string `json:"message"`
-	State     string `json:"state,omitempty"`
-	TaskNum   string `json:"task_num,omitempty"`
+	Event      string `json:"event"`
+	Timestamp  string `json:"timestamp"`
+	SessionID  string `json:"session_id,omitempty"`
+	Message    string `json:"message"`
+	UserPrompt string `json:"user_prompt,omitempty"`
+	State      string `json:"state,omitempty"`
+	TaskNum    string `json:"task_num,omitempty"`
 }
 
 func main() {
@@ -61,6 +62,7 @@ func run() int {
 	// Define flags
 	typeFlag := flag.String("type", "", "Event type: task|question|progress|session")
 	messageFlag := flag.String("message", "", "Message content (string)")
+	userPromptFlag := flag.String("user-prompt", "", "User's input prompt (optional)")
 	stateFlag := flag.String("state", "", "Task state: pending|in_progress|blocked|completed")
 	taskNumFlag := flag.String("task-num", "", "Current task number (e.g., \"3/15\")")
 	sessionFlag := flag.String("session", "", "Session identifier (any string)")
@@ -93,12 +95,13 @@ func run() int {
 
 	// Create message
 	msg := Message{
-		Event:     subject,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		SessionID: *sessionFlag,
-		Message:   *messageFlag,
-		State:     *stateFlag,
-		TaskNum:   *taskNumFlag,
+		Event:      subject,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		SessionID:  *sessionFlag,
+		Message:    *messageFlag,
+		UserPrompt: *userPromptFlag,
+		State:      *stateFlag,
+		TaskNum:    *taskNumFlag,
 	}
 
 	// Marshal to JSON
@@ -123,7 +126,7 @@ func run() int {
 	}
 
 	// Success - print confirmation
-	printSuccess(*typeFlag, *stateFlag, *taskNumFlag, *sessionFlag, subject)
+	printSuccess(*typeFlag, *stateFlag, *taskNumFlag, *sessionFlag, *userPromptFlag, subject)
 	return exitSuccess
 }
 
@@ -230,8 +233,8 @@ func publishMessage(nc *nats.Conn, subject string, data []byte) error {
 	return nil
 }
 
-// printSuccess prints a success message with details
-func printSuccess(eventType, state, taskNum, sessionID, subject string) {
+// printSuccess prints a success message with details and context reminders
+func printSuccess(eventType, state, taskNum, sessionID, userPrompt, subject string) {
 	fmt.Printf("✓ Message published successfully to '%s'\n", subject)
 	fmt.Printf("  Type: %s\n", eventType)
 	if state != "" {
@@ -242,6 +245,18 @@ func printSuccess(eventType, state, taskNum, sessionID, subject string) {
 	}
 	if sessionID != "" {
 		fmt.Printf("  Session: %s\n", sessionID)
+	}
+
+	// Context reinforcement loop for Claude
+	if eventType == "task" {
+		if userPrompt != "" {
+			// Positive reinforcement when user-prompt is present
+			fmt.Println("\n  ✓ User prompt captured - context preserved for logging")
+		} else {
+			// Reminder when user-prompt is missing on task events
+			fmt.Println("\n  ⚠️  TIP: Add -user-prompt=\"<exact user text>\" to capture full context")
+			fmt.Println("       Use VERBATIM user input - don't summarize or paraphrase")
+		}
 	}
 }
 
@@ -300,6 +315,7 @@ REQUIRED FLAGS:
   -message     Message content (string)
 
 OPTIONAL FLAGS:
+  -user-prompt User's EXACT, VERBATIM input (DO NOT summarize or paraphrase)
   -state       Task state: pending|in_progress|blocked|completed
   -task-num    Current task number (e.g., "3/15")
   -session     Session identifier (any string)
@@ -307,21 +323,37 @@ OPTIONAL FLAGS:
   -h           Show help
 
 FOR CLAUDE CODE (AI Assistant):
-  IMPORTANT: Use this tool to send notifications via NATS before asking the user
-  questions or when blocked waiting for user input.
+  ═══════════════════════════════════════════════════════════════════════
+  CRITICAL WORKFLOW - USE CLOG AT START OF EVERY TASK
+  ═══════════════════════════════════════════════════════════════════════
 
-  When you need to ask the user a question:
-    1. First call: clog -type=question -state=blocked -message="<your question>" -session="<session>"
-    2. Then ask the user your question normally
-    3. This ensures the user receives a NATS notification about your question
+  When starting task-based work:
+    1. IMMEDIATELY log with both user prompt and your action:
+       clog -type=task -state=in_progress -user-prompt="<VERBATIM user text - EXACT COPY>" -message="<what you're doing>" -session="<session-id>"
 
-  Example workflow:
-    clog -type=question -state=blocked -message="Should I deploy to staging or production?" -session="deploy-2024"
+    2. Then proceed with your task list and work
+
+  CRITICAL RULES:
+    - -user-prompt: EXACT, VERBATIM copy of user's input (word-for-word, NO paraphrasing)
+    - -message: Your summarized action/response
+    - Both fields in ONE clog call = clean, no extra noise
+
+  DO NOT summarize, paraphrase, shorten, or rephrase the user's prompt!
+
+  Example:
+    User says: "Add logging to the API endpoints and make sure it integrates with the middleware"
+    ✓ CORRECT:
+      clog -type=task -state=in_progress -user-prompt="Add logging to the API endpoints and make sure it integrates with the middleware" -message="Adding structured logging middleware" -session="api-logging"
+    ✗ WRONG:
+      clog ... -user-prompt="Add logging to API"
+
+  When asking questions (blocking):
+    clog -type=question -state=blocked -message="<your question>" -session="<session-id>"
     # Then ask the user in the conversation
 
 EXAMPLES:
-  # Task started
-  clog -type=task -state=in_progress -message="Adding VAT breakdown" -task-num="3/15" -session="nye-api"
+  # Task started (with user prompt)
+  clog -type=task -state=in_progress -user-prompt="Add VAT breakdown to invoice API" -message="Adding VAT breakdown calculation" -task-num="3/15" -session="nye-api"
 
   # Task completed
   clog -type=task -state=completed -message="VAT breakdown added" -task-num="3/15" -session="nye-api"
