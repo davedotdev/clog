@@ -1,5 +1,47 @@
 # clog Changelog
 
+## v0.2.0 - Enhanced Feedback Loop & Configurable Reminders
+
+### Changes
+- **Context-aware feedback system**: clog now provides intelligent, context-specific reminders based on event type and state
+- **User-configurable reminders**: Three customizable reminder slots collected at build time and baked into the binary
+- **Reduced feedback noise**: Reminders are only shown when relevant to the current action
+- **Smart reminder logic**:
+  - Task start reminds to log completion
+  - Task completion suggests next steps
+  - Missing user-prompt triggers a helpful tip
+  - Question logging provides positive reinforcement
+- **printReminders function**: New architecture separates user-configured and context-specific reminders
+- **getContextReminder function**: Implements intelligent reminder selection based on workflow state
+
+### Key Feedback Improvements:
+- **For tasks (in_progress)**:
+  - If no user-prompt: "TIP: Add -user-prompt=\"<exact user text>\" to capture full context"
+  - If user-prompt provided: "Remember: Log completion when done"
+- **For tasks (completed)**: "Next: Log next task or use -type=progress for multi-step work"
+- **For tasks (blocked)**: "Consider: Use -type=question -state=blocked if waiting for user input"
+- **For questions (blocked)**: "Good: Always log questions before asking user"
+- **For sessions**: "Remember: Log tasks with -type=task as you work"
+
+### Custom Reminders:
+Users can now add up to 3 custom reminders during `make build`:
+- Examples: "Remember to ask me before deploying to production"
+- Examples: "Always run tests before committing code"
+- Examples: "Check the CI/CD pipeline status before proceeding"
+
+These reminders appear in every clog output, keeping important project-specific context visible in the conversation history.
+
+### Technical Details:
+- Added `reminder1`, `reminder2`, `reminder3` variables in cmd/main.go (lines 36-38)
+- Updated build process to collect and inject reminders
+- Implemented `printReminders()` and `getContextReminder()` functions
+- Version bumped to 0.2.0
+
+### Why This Update?
+Creates a comprehensive feedback loop that helps AI agents maintain context over long conversations. The combination of custom reminders and intelligent context-specific feedback reduces errors and keeps workflows on track.
+
+---
+
 ## v0.1.4 - Mandatory Question Logging
 
 ### Changes
