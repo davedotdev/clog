@@ -284,28 +284,24 @@ func TestPrintSuccess(t *testing.T) {
 	// This is a simple test to ensure printSuccess doesn't panic
 	// In a real-world scenario, you might want to capture stdout
 	tests := []struct {
-		name      string
-		eventType string
-		state     string
-		taskNum   string
-		sessionID string
-		subject   string
+		name       string
+		eventType  string
+		userPrompt string
 	}{
 		{
-			name:      "full output",
-			eventType: "task",
-			state:     "in_progress",
-			taskNum:   "3/15",
-			sessionID: "test-session",
-			subject:   "claude.tasks.started",
+			name:       "task with user prompt",
+			eventType:  "task",
+			userPrompt: "test prompt",
 		},
 		{
-			name:      "minimal output",
-			eventType: "progress",
-			state:     "",
-			taskNum:   "",
-			sessionID: "",
-			subject:   "claude.progress.update",
+			name:       "task without user prompt",
+			eventType:  "task",
+			userPrompt: "",
+		},
+		{
+			name:       "progress event",
+			eventType:  "progress",
+			userPrompt: "",
 		},
 	}
 
@@ -317,7 +313,7 @@ func TestPrintSuccess(t *testing.T) {
 					t.Errorf("printSuccess() panicked: %v", r)
 				}
 			}()
-			printSuccess(tt.eventType, tt.state, tt.taskNum, tt.sessionID, tt.subject)
+			printSuccess(tt.eventType, tt.userPrompt)
 		})
 	}
 }
