@@ -10,6 +10,8 @@
 
 A lightweight Go binary for publishing Claude Code's task progress and questions to NATS. This tool enables real-time monitoring and integration of Claude Code workflows with your NATS-based systems.
 
+Create the binary and put it in your project directory and tell Claude about it.
+
 **Perfect for:**
 - 🤖 Tracking Claude Code automation workflows
 - 📊 Real-time monitoring of AI-assisted development
