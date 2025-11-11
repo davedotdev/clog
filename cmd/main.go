@@ -129,7 +129,7 @@ func run() int {
 	}
 
 	// Success - print confirmation
-	printSuccess(*typeFlag, *userPromptFlag)
+	printSuccess(*typeFlag, *userPromptFlag, *stateFlag)
 	return exitSuccess
 }
 
@@ -237,16 +237,16 @@ func publishMessage(nc *nats.Conn, subject string, data []byte) error {
 }
 
 // printSuccess prints a success message with HTTP-style status code and reminders
-func printSuccess(eventType, userPrompt string) {
+func printSuccess(eventType, userPrompt, state string) {
 	// Simple HTTP-style status output
 	fmt.Println("200 OK")
 
 	// Display reminders if configured
-	printReminders(eventType, userPrompt)
+	printReminders(eventType, userPrompt, state)
 }
 
 // printReminders displays configured reminders and context-specific tips
-func printReminders(eventType, userPrompt string) {
+func printReminders(eventType, userPrompt, state string) {
 	reminders := []string{}
 
 	// User-configured reminders (collected at build time)
@@ -260,9 +260,10 @@ func printReminders(eventType, userPrompt string) {
 		reminders = append(reminders, reminder3)
 	}
 
-	// Default reminder for task events without user prompt
-	if eventType == "task" && userPrompt == "" {
-		reminders = append(reminders, "⚠️  TIP: Add -user-prompt=\"<exact user text>\" to capture full context (use VERBATIM user input)")
+	// Context-specific reminders for AI agents
+	contextReminder := getContextReminder(eventType, userPrompt, state)
+	if contextReminder != "" {
+		reminders = append(reminders, contextReminder)
 	}
 
 	// Print reminders if any exist
@@ -272,6 +273,35 @@ func printReminders(eventType, userPrompt string) {
 			fmt.Printf("  %s\n", reminder)
 		}
 	}
+}
+
+// getContextReminder returns context-specific reminder based on event type and state
+func getContextReminder(eventType, userPrompt, state string) string {
+	switch eventType {
+	case "task":
+		switch state {
+		case "in_progress":
+			if userPrompt == "" {
+				return "TIP: Add -user-prompt=\"<exact user text>\" to capture full context (VERBATIM user input)"
+			}
+			return "Remember: Log completion when done: clog -type=task -state=completed -message=\"...\" -session=\"...\""
+		case "completed":
+			return "Next: Log next task or use -type=progress for multi-step work"
+		case "blocked":
+			return "Consider: Use -type=question -state=blocked if waiting for user input"
+		}
+	case "question":
+		if state == "blocked" {
+			return "Good: Always log questions before asking user"
+		}
+	case "progress":
+		return "" // No reminder needed for progress updates
+	case "session":
+		if state == "" || state == "in_progress" {
+			return "Remember: Log tasks with -type=task as you work"
+		}
+	}
+	return ""
 }
 
 // mapSubject maps event type and state to NATS subject
