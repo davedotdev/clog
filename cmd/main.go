@@ -13,7 +13,7 @@ import (
 )
 
 // Version information
-const version = "0.1.4"
+const version = "0.2.0"
 
 // Exit codes
 const (
@@ -32,6 +32,10 @@ var (
 	defaultNKey     = ""
 	defaultNATSJWT  = ""
 	defaultNATSSeed = ""
+	// User-configurable reminders (collected at build time)
+	reminder1 = ""
+	reminder2 = ""
+	reminder3 = ""
 )
 
 // Valid event types
@@ -85,8 +89,7 @@ func run() int {
 
 	// Validate inputs
 	if err := validateFlags(*typeFlag, *messageFlag); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
-		printHelp()
+		fmt.Fprintf(os.Stderr, "400 Bad Request: %v\n", err)
 		return exitInvalidArgs
 	}
 
@@ -107,26 +110,26 @@ func run() int {
 	// Marshal to JSON
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Failed to marshal JSON: %v\n", err)
+		fmt.Fprintf(os.Stderr, "500 Internal Server Error: Failed to marshal JSON: %v\n", err)
 		return exitInvalidArgs
 	}
 
 	// Connect to NATS
 	nc, err := connectNATS()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: NATS connection failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "503 Service Unavailable: NATS connection failed: %v\n", err)
 		return exitConnectionError
 	}
 	defer nc.Close()
 
 	// Publish message
 	if err := publishMessage(nc, subject, jsonData); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "503 Service Unavailable: %v\n", err)
 		return exitConnectionError
 	}
 
 	// Success - print confirmation
-	printSuccess(*typeFlag, *stateFlag, *taskNumFlag, *sessionFlag, *userPromptFlag, subject)
+	printSuccess(*typeFlag, *userPromptFlag, *stateFlag)
 	return exitSuccess
 }
 
@@ -233,31 +236,72 @@ func publishMessage(nc *nats.Conn, subject string, data []byte) error {
 	return nil
 }
 
-// printSuccess prints a success message with details and context reminders
-func printSuccess(eventType, state, taskNum, sessionID, userPrompt, subject string) {
-	fmt.Printf("✓ Message published successfully to '%s'\n", subject)
-	fmt.Printf("  Type: %s\n", eventType)
-	if state != "" {
-		fmt.Printf("  State: %s\n", state)
+// printSuccess prints a success message with HTTP-style status code and reminders
+func printSuccess(eventType, userPrompt, state string) {
+	// Simple HTTP-style status output
+	fmt.Println("200 OK")
+
+	// Display reminders if configured
+	printReminders(eventType, userPrompt, state)
+}
+
+// printReminders displays configured reminders and context-specific tips
+func printReminders(eventType, userPrompt, state string) {
+	reminders := []string{}
+
+	// User-configured reminders (collected at build time)
+	if reminder1 != "" {
+		reminders = append(reminders, reminder1)
 	}
-	if taskNum != "" {
-		fmt.Printf("  Task: %s\n", taskNum)
+	if reminder2 != "" {
+		reminders = append(reminders, reminder2)
 	}
-	if sessionID != "" {
-		fmt.Printf("  Session: %s\n", sessionID)
+	if reminder3 != "" {
+		reminders = append(reminders, reminder3)
 	}
 
-	// Context reinforcement loop for Claude
-	if eventType == "task" {
-		if userPrompt != "" {
-			// Positive reinforcement when user-prompt is present
-			fmt.Println("\n  ✓ User prompt captured - context preserved for logging")
-		} else {
-			// Reminder when user-prompt is missing on task events
-			fmt.Println("\n  ⚠️  TIP: Add -user-prompt=\"<exact user text>\" to capture full context")
-			fmt.Println("       Use VERBATIM user input - don't summarize or paraphrase")
+	// Context-specific reminders for AI agents
+	contextReminder := getContextReminder(eventType, userPrompt, state)
+	if contextReminder != "" {
+		reminders = append(reminders, contextReminder)
+	}
+
+	// Print reminders if any exist
+	if len(reminders) > 0 {
+		fmt.Println()
+		for _, reminder := range reminders {
+			fmt.Printf("  %s\n", reminder)
 		}
 	}
+}
+
+// getContextReminder returns context-specific reminder based on event type and state
+func getContextReminder(eventType, userPrompt, state string) string {
+	switch eventType {
+	case "task":
+		switch state {
+		case "in_progress":
+			if userPrompt == "" {
+				return "TIP: Add -user-prompt=\"<exact user text>\" to capture full context (VERBATIM user input)"
+			}
+			return "Remember: Log completion when done: clog -type=task -state=completed -message=\"...\" -session=\"...\""
+		case "completed":
+			return "Next: Log next task or use -type=progress for multi-step work"
+		case "blocked":
+			return "Consider: Use -type=question -state=blocked if waiting for user input"
+		}
+	case "question":
+		if state == "blocked" {
+			return "Good: Always log questions before asking user"
+		}
+	case "progress":
+		return "" // No reminder needed for progress updates
+	case "session":
+		if state == "" || state == "in_progress" {
+			return "Remember: Log tasks with -type=task as you work"
+		}
+	}
+	return ""
 }
 
 // mapSubject maps event type and state to NATS subject

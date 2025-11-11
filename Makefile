@@ -124,6 +124,20 @@ build:
 		   AUTH_TYPE="none"; USERNAME=""; PASSWORD=""; TOKEN=""; NKEY=""; JWT=""; SEED=""; ;; \
 	esac; \
 	echo ""; \
+	echo "=== Custom Reminders Configuration ==="; \
+	echo ""; \
+	echo "Would you like to add reminders to clog's output to tell agents and LLMs"; \
+	echo "something important? It helps keep context in conversation history."; \
+	echo ""; \
+	echo "Examples:"; \
+	echo "  - 'Remember to ask me before deploying to production'"; \
+	echo "  - 'Always run tests before committing code'"; \
+	echo "  - 'Check the CI/CD pipeline status before proceeding'"; \
+	echo ""; \
+	read -p "Add custom reminder 1? (leave empty to skip): " REMINDER1; \
+	read -p "Add custom reminder 2? (leave empty to skip): " REMINDER2; \
+	read -p "Add custom reminder 3? (leave empty to skip): " REMINDER3; \
+	echo ""; \
 	echo "Backing up main.go..."; \
 	cp cmd/main.go cmd/main.go.bak; \
 	echo "Injecting configuration into code..."; \
@@ -135,6 +149,9 @@ build:
 	sed -i.tmp "s|defaultNKey     = \".*\"|defaultNKey     = \"$$NKEY\"|" cmd/main.go; \
 	sed -i.tmp "s|defaultNATSJWT  = \".*\"|defaultNATSJWT  = \"$$JWT\"|" cmd/main.go; \
 	sed -i.tmp "s|defaultNATSSeed = \".*\"|defaultNATSSeed = \"$$SEED\"|" cmd/main.go; \
+	sed -i.tmp "s|reminder1 = \".*\"|reminder1 = \"$$REMINDER1\"|" cmd/main.go; \
+	sed -i.tmp "s|reminder2 = \".*\"|reminder2 = \"$$REMINDER2\"|" cmd/main.go; \
+	sed -i.tmp "s|reminder3 = \".*\"|reminder3 = \"$$REMINDER3\"|" cmd/main.go; \
 	rm -f cmd/main.go.tmp; \
 	echo "Building binary..."; \
 	go build -o clog ./cmd/main.go; \

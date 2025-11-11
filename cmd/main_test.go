@@ -284,28 +284,28 @@ func TestPrintSuccess(t *testing.T) {
 	// This is a simple test to ensure printSuccess doesn't panic
 	// In a real-world scenario, you might want to capture stdout
 	tests := []struct {
-		name      string
-		eventType string
-		state     string
-		taskNum   string
-		sessionID string
-		subject   string
+		name       string
+		eventType  string
+		userPrompt string
+		state      string
 	}{
 		{
-			name:      "full output",
-			eventType: "task",
-			state:     "in_progress",
-			taskNum:   "3/15",
-			sessionID: "test-session",
-			subject:   "claude.tasks.started",
+			name:       "task with user prompt",
+			eventType:  "task",
+			userPrompt: "test prompt",
+			state:      "in_progress",
 		},
 		{
-			name:      "minimal output",
-			eventType: "progress",
-			state:     "",
-			taskNum:   "",
-			sessionID: "",
-			subject:   "claude.progress.update",
+			name:       "task without user prompt",
+			eventType:  "task",
+			userPrompt: "",
+			state:      "in_progress",
+		},
+		{
+			name:       "progress event",
+			eventType:  "progress",
+			userPrompt: "",
+			state:      "",
 		},
 	}
 
@@ -317,7 +317,90 @@ func TestPrintSuccess(t *testing.T) {
 					t.Errorf("printSuccess() panicked: %v", r)
 				}
 			}()
-			printSuccess(tt.eventType, tt.state, tt.taskNum, tt.sessionID, tt.subject)
+			printSuccess(tt.eventType, tt.userPrompt, tt.state)
+		})
+	}
+}
+
+func TestGetContextReminder(t *testing.T) {
+	tests := []struct {
+		name       string
+		eventType  string
+		userPrompt string
+		state      string
+		want       string
+	}{
+		{
+			name:       "task in_progress with user prompt",
+			eventType:  "task",
+			userPrompt: "user input",
+			state:      "in_progress",
+			want:       "Remember: Log completion when done: clog -type=task -state=completed -message=\"...\" -session=\"...\"",
+		},
+		{
+			name:       "task in_progress without user prompt",
+			eventType:  "task",
+			userPrompt: "",
+			state:      "in_progress",
+			want:       "TIP: Add -user-prompt=\"<exact user text>\" to capture full context (VERBATIM user input)",
+		},
+		{
+			name:       "task completed",
+			eventType:  "task",
+			userPrompt: "",
+			state:      "completed",
+			want:       "Next: Log next task or use -type=progress for multi-step work",
+		},
+		{
+			name:       "task blocked",
+			eventType:  "task",
+			userPrompt: "",
+			state:      "blocked",
+			want:       "Consider: Use -type=question -state=blocked if waiting for user input",
+		},
+		{
+			name:       "question blocked",
+			eventType:  "question",
+			userPrompt: "",
+			state:      "blocked",
+			want:       "Good: Always log questions before asking user",
+		},
+		{
+			name:       "progress",
+			eventType:  "progress",
+			userPrompt: "",
+			state:      "",
+			want:       "",
+		},
+		{
+			name:       "session started",
+			eventType:  "session",
+			userPrompt: "",
+			state:      "",
+			want:       "Remember: Log tasks with -type=task as you work",
+		},
+		{
+			name:       "session in_progress",
+			eventType:  "session",
+			userPrompt: "",
+			state:      "in_progress",
+			want:       "Remember: Log tasks with -type=task as you work",
+		},
+		{
+			name:       "session completed",
+			eventType:  "session",
+			userPrompt: "",
+			state:      "completed",
+			want:       "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getContextReminder(tt.eventType, tt.userPrompt, tt.state)
+			if got != tt.want {
+				t.Errorf("getContextReminder() = %q, want %q", got, tt.want)
+			}
 		})
 	}
 }
