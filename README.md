@@ -13,6 +13,7 @@ A lightweight Go binary for publishing task progress, questions, and events from
 Works with any coding agent that has access to CLI tools - Claude Code, Codex, Aider, Cursor, or custom automation scripts. 
 
 > Everyone: But Dave, it's just an opinionated wrapper around NATS! 
+
 > Dave: Yes. And it works.
 
 **Perfect for:**
